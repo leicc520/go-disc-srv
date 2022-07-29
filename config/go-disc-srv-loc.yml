@@ -1,0 +1,27 @@
+app:
+  version: v1.0.0
+  host: 0.0.0.0:7000
+  ssl: off
+  crossDomain: on
+  tracing:
+    agent: 127.0.0.1:6831
+    type: const
+    param: 1
+    is_trace: true
+  upfileDir: ./upfile
+  upfileBase: .
+cache:
+  driver: redis
+  params: redis://:@127.0.0.1:6379/0
+redis: redis://:@127.0.0.1:6379/1
+logger:
+  prefix: web
+  file: web-disc
+  dir: ./cachedir/log
+  mask: 4
+dbmaster:
+  driver: sqlite3
+  host: go.disc.srv.db
+dbslaver:
+  driver: sqlite3
+  host: go.disc.srv.db

@@ -1,0 +1,19 @@
+[Unit]
+Description=system discover service
+After=network.target
+
+[Service]
+Environment="GIN_MODE=release"
+Environment="DCENV=dev"
+Environment="DCSRV=127.0.0.1:6061"
+Environment="DCJWT=wDcmfpqnrOmBthROkmNJVU6452uTUDyX"
+Environment="CONFIGYML=/home/www/go/go-disc-srv/dev/config/go-disc-srv.yml"
+
+Type=simple
+PIDFile=/run/go-disc-srv-dev.pid
+ExecStart=/home/www/go/go-disc-srv/dev/go-disc-srv
+ExecReload=/bin/kill -SIGHUP $MAINPID
+ExecStopPost=/bin/rm /run/go-disc-srv-dev.pid
+
+[Install]
+WantedBy=multi-user.target
