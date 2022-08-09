@@ -1,17 +1,17 @@
-package coreCTRL
+package app
 
 import (
 	"strings"
 	"time"
 	
-	"git.cht-group.net/leicc/go-core"
-	"git.cht-group.net/leicc/go-disc-srv/app/logic"
-	"git.cht-group.net/leicc/go-disc-srv/app/models/sys"
-	"git.cht-group.net/leicc/go-orm"
 	"github.com/gin-gonic/gin"
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
+	"githunb.com/leicc520/go-disc-srv/app/models"
+	"githunb.com/leicc520/go-disc-srv/app/service"
 )
 
-type yamlSt struct {
+type argsYamlSt struct {
 	Id      int64  `form:"id"`
 	Name    string `form:"name" binding:"required,min=3,max=31"`
 	Version string `form:"version" binding:"required,min=1"`
@@ -22,7 +22,7 @@ type yamlSt struct {
 }
 
 type yamlQuerySt struct {
-	logic.ArgsRequestList
+	service.ArgsRequestList
 	UserId int64  `form:"userid"`
 	Query  string `form:"query"`
 }
@@ -39,19 +39,19 @@ type yamlQuerySt struct {
 // @Success 200 {json} HttpView {sid:xxx[要记录,以后请求放http请求头中],user:{用户基础信息}}
 // @Router /api/core/yaml/list [post]
 func sysYamlList(c *gin.Context) {
-	args := yamlQuerySt{}
+	args   := yamlQuerySt{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicValidateHttpError(1001, err)
+		core.PanicValidateHttpError(1001, err)
 	}
-	sorm := sys.NewSysYaml()
+	sorm   := models.NewSysYaml()
 	var list []orm.SqlMap = nil
-	cWhandler := sysYamlListWhere(&args)
-	total := sorm.GetTotal(cWhandler, "COUNT(1)").ToInt64()
+	wHandle:= sysYamlListWhere(&args)
+	total  := sorm.GetTotal(wHandle, "COUNT(1)").ToInt64()
 	if total > 0 { //获取列表数据
 		sorm.Format(func(sm orm.SqlMap) {
-			sm["user"] = logic.GetSysOperator(sm["userid"])
+			sm["user"] = service.GetSysOperator(sm["userid"])
 		})
-		list = sorm.GetList(args.Start, args.Limit, cWhandler, "*")
+		list = sorm.GetList(args.Start, args.Limit, wHandle, "*")
 	}
 	core.NewHttpView(c).JsonDisplay(gin.H{"total": total, "list": list})
 }
@@ -72,8 +72,8 @@ func sysYamlListWhere(args *yamlQuerySt) orm.WHandler {
 			st.Where("status", 1)
 		}
 		if args.Sorts != nil && len(args.Sorts) > 0 {
-			for field, orderby := range args.Sorts {
-				st.OrderBy(field, orderby)
+			for field, orderBy := range args.Sorts {
+				st.OrderBy(field, orderBy)
 			}
 		}
 		return st.GetWheres()
@@ -92,17 +92,14 @@ func sysYamlDelete(c *gin.Context) {
 		Id int64 `form:"id" binding:"required,min=1"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicValidateHttpError(1001, err)
+		core.PanicValidateHttpError(1001, err)
 	}
-	sorm := sys.NewSysYaml()
-	datas := sorm.GetOne(args.Id)
-	if calls, ok := datas["calls"]; ok {
-		if nsize, ok := calls.(int64); ok && nsize > 64 {
-			logic.PanicHttpError(1002, "配置已经投入使用,无法删除.")
-		}
+	sorm  := models.NewSysYaml()
+	data  := models.SysYamlSt{}
+	if err := sorm.GetOne(args.Id).ToStruct(&data); err != nil || data.Status == 1 {
+		core.PanicHttpError(1002, "配置已经投入使用,无法删除.")
 	}
 	sorm.Delete(args.Id) //删除缓存
-	logic.DBLog(0, datas, c)
 	core.NewHttpView(c).JsonDisplay(nil)
 }
 
@@ -118,18 +115,18 @@ func sysYamlDelete(c *gin.Context) {
 // @Success 200 {json} HttpView {sid:xxx[要记录,以后请求放http请求头中],user:{用户基础信息}}
 // @Router /api/core/yaml/update [post]
 func sysYamlUpdate(c *gin.Context) {
-	args := yamlSt{}
+	args   := argsYamlSt{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicValidateHttpError(1001, err)
+		core.PanicValidateHttpError(1001, err)
 	}
-	sorm  := sys.NewSysYaml()
-	oldid := sorm.IsExists(func(st *orm.QuerySt) string {
+	sorm  := models.NewSysYaml()
+	oldId := sorm.IsExists(func(st *orm.QuerySt) string {
 		st.Where("name", args.Name)
 		st.Where("status", 1)
 		return st.GetWheres()
 	}).ToInt64()
-	if oldid > 0 && oldid != args.Id {
-		logic.PanicHttpError(1016)
+	if oldId > 0 && oldId != args.Id {
+		core.PanicHttpError(1016)
 	}
 	//封装成事务，确保程序的一致性
 	result := sorm.Query().Transaction(func(st *orm.QuerySt) bool {
@@ -142,9 +139,8 @@ func sysYamlUpdate(c *gin.Context) {
 					return false
 				}
 			}
-			logic.DBLog(logic.DEBUG, datas, c)
 		}
-		args.UserId = logic.JWTACLGetUserid(c)
+		args.UserId = service.JWTACLGetUserid(c)
 		datas := orm.SqlMap{"name":args.Name, "version":args.Version,
 			"yaml":args.Yaml, "status":1, "userid":args.UserId, "stime":time.Now().Unix()}
 		xldid := sorm.NewOne(datas, nil) //更新数据信息
@@ -154,7 +150,7 @@ func sysYamlUpdate(c *gin.Context) {
 		return true
 	})
 	if !result {//配置异常的情况
-		logic.PanicHttpError(1017, "请求更新配置异常")
+		core.PanicHttpError(1017, "请求更新配置异常")
 	}
 	core.NewHttpView(c).JsonDisplay(nil)
 }

@@ -7,7 +7,7 @@ app:
     agent: 127.0.0.1:6831
     type: const
     param: 1
-    is_trace: true
+    is_trace: false
   upfileDir: ./upfile
   upfileBase: .
 cache:
@@ -16,7 +16,7 @@ cache:
 redis: redis://:@127.0.0.1:6379/1
 logger:
   prefix: web
-  file: web-disc
+  file: go-disc-srv
   dir: ./cachedir/log
   mask: 4
 dbmaster:

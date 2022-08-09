@@ -1,17 +1,17 @@
-package discCTRL
+package app
 
 import (
-	"github.com/leicc520/go-orm"
 	"net"
 	"net/http"
 	"regexp"
 	"time"
 	
-	"git.cht-group.net/leicc/go-disc-srv/app/logic"
-	"git.cht-group.net/leicc/go-disc-srv/app/models/sys"
-	"git.cht-group.net/leicc/go-orm"
-	"git.cht-group.net/leicc/go-orm/log"
 	"github.com/gin-gonic/gin"
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
+	"github.com/leicc520/go-orm/log"
+	"githunb.com/leicc520/go-disc-srv/app/models"
+	"githunb.com/leicc520/go-disc-srv/app/service"
 )
 
 // @Summary 微服务注册
@@ -24,16 +24,16 @@ import (
 // @Success 200 {string} OK
 // @Router /micsrv/register [post]
 func doRegister(c *gin.Context) {
-	args := micsrvNodeSt{}
+	args := service.MicSrvNodeSt{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicHttpError(500, err.Error())
+		core.PanicHttpError(500, err.Error())
 	}
 	//拼接真实的服务地址 只提交端口的情况 要取一下请求IP
 	if ok, err := regexp.MatchString("^[\\d]+$", args.Srv); ok && err == nil {
 		srvip, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
 		args.Srv = srvip + ":" + args.Srv
 	}
-	sorm := sys.NewSysMsrv()
+	sorm := models.NewSysMsrv()
 	oldid := sorm.NewOneFromHandler(func(st *orm.QuerySt) *orm.QuerySt {
 		st.Value("srv", args.Srv).Value("name", args.Name)
 		st.Value("version", args.Version).Value("proto", args.Proto)
@@ -46,10 +46,10 @@ func doRegister(c *gin.Context) {
 	})
 	log.Write(log.INFO, oldid, "---->", args)
 	//分别添加到对应的数据结构当中
-	if args.Proto == "http" && gHttpPools != nil {
-		gHttpPools.Put(args.Name, args.Srv, oldid)
-	} else if args.Proto == "grpc" && gGrpcPools != nil {
-		gGrpcPools.Put(args.Name, args.Srv, oldid)
+	if args.Proto == "http" && service.HttpPools != nil {
+		service.HttpPools.Put(args.Name, args.Srv, oldid)
+	} else if args.Proto == "grpc" && service.GrpcPools != nil {
+		service.GrpcPools.Put(args.Name, args.Srv, oldid)
 	}
 	c.JSON(http.StatusOK, gin.H{"Code": 0, "Msg": "OK", "Srv": args.Srv})
 }
@@ -68,17 +68,18 @@ func doUnRegister(c *gin.Context) {
 		Proto string `json:"proto" binding:"required"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicHttpError(500, err.Error())
+		core.PanicHttpError(500, err.Error())
 	}
-	sorm := sys.NewSysMsrv()
+	sorm := models.NewSysMsrv()
 	sorm.MultiDelete(func(st *orm.QuerySt) string {
-		st.Where("srv", args.Srv).Where("name", args.Name).Where("proto", args.Proto)
+		st.Where("srv", args.Srv).Where("name", args.Name)
+		st.Where("proto", args.Proto)
 		return st.GetWheres()
 	})
-	if args.Proto == "http" && gHttpPools != nil {
-		gHttpPools.Del(args.Name, args.Srv)
-	} else if args.Proto == "grpc" && gGrpcPools != nil {
-		gGrpcPools.Del(args.Name, args.Srv)
+	if args.Proto == "http" && service.HttpPools != nil {
+		service.HttpPools.Del(args.Name, args.Srv)
+	} else if args.Proto == "grpc" && service.GrpcPools != nil {
+		service.GrpcPools.Del(args.Name, args.Srv)
 	}
 	c.JSON(http.StatusOK, gin.H{"Code": 0, "Msg": "OK"})
 }
@@ -90,48 +91,19 @@ func doUnRegister(c *gin.Context) {
 // @Success 200 {string} OK
 // @Router /micsrv/discover [get]
 func doDiscover(c *gin.Context) {
-	name := c.Param("name")
+	name  := c.Param("name")
 	proto := c.Param("proto")
 	if len(name) < 6 || len(proto) < 4 {
-		logic.PanicHttpError(500, "discover server{"+name+"-->"+proto+"} error")
+		core.PanicHttpError(500, "discover server{"+name+"-->"+proto+"} error")
 	}
-	var list []string = nil
-	if proto == "http" && gHttpPools != nil {
-		list = getSrv(name, proto, gHttpPools)
-	} else if proto == "grpc" && gGrpcPools != nil {
-		list = getSrv(name, proto, gGrpcPools)
-	}
+	sorm  := models.NewSysMsrv()
+	list  := sorm.GetColumn(0, -1, func(st *orm.QuerySt) string {
+		st.Where("name", name).Where("proto", proto)
+		st.Where("status", 1).OrderBy("stime", orm.DESC)
+		return st.GetWheres()
+	}, "srv")
 	log.Write(log.INFO, name, "-->", proto, list)
 	c.JSON(http.StatusOK, gin.H{"srvs": list, "code": 0, "msg": "OK"})
-}
-
-//获取服务数据资料信息
-func getSrv(name, proto string, gsrv *MicSrvPoolSt) []string {
-	list := gsrv.Get(name)
-	if list == nil || len(list) == 0 { //没找到通过db查找
-		sorm := sys.NewSysMsrv()
-		datas := sorm.GetList(0, -1, func(st *orm.QuerySt) string {
-			st.Where("name", name).Where("proto", proto)
-			st.OrderBy("status", orm.ASC).OrderBy("stime", orm.DESC)
-			return st.GetWheres()
-		}, "id,name,srv,proto,status,version")
-		node := micsrvNodeSt{}
-		for _, msrv := range datas {
-			if err := msrv.ToStruct(&node); err != nil || node.Id < 1 {
-				log.Write(log.ERROR, err)
-				continue
-			}
-			//心跳正常的情况加入 数据
-			if regSrv.Health(1, node.Proto, node.Srv) {
-				list = append(list, node.Srv)
-				gsrv.Put(node.Name, node.Srv, node.Id)
-				if node.Status != 1 {//更新数据记录状态
-					sorm.Save(node.Id, orm.SqlMap{"status":1, "stime":time.Now().Unix()})
-				}
-			}
-		}
-	}
-	return list
 }
 
 // @Summary 微服务重载
@@ -140,11 +112,11 @@ func getSrv(name, proto string, gsrv *MicSrvPoolSt) []string {
 // @Success 200 {string} OK
 // @Router /micsrv/reload [get]
 func doReload(c *gin.Context) {
-	if gHttpPools != nil {
-		gHttpPools.Load("http")
+	if service.HttpPools != nil {
+		service.HttpPools.Load("http")
 	}
-	if gGrpcPools != nil {
-		gGrpcPools.Load("grpc")
+	if service.GrpcPools != nil {
+		service.GrpcPools.Load("grpc")
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "OK"})
 }
@@ -157,9 +129,9 @@ func doReload(c *gin.Context) {
 func doConfig(c *gin.Context) {
 	name := c.Param("name")
 	if len(name) < 6 {
-		logic.PanicHttpError(500, "grpc config server{"+name+"} error")
+		core.PanicHttpError(500, "grpc config server{"+name+"} error")
 	}
-	sorm := sys.NewSysYaml()
+	sorm := models.NewSysYaml()
 	yaml := sorm.GetValue(func(st *orm.QuerySt) string {
 		st.Where("name", name).Where("status", 1)
 		return st.GetWheres()

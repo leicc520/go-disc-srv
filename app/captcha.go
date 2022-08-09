@@ -3,8 +3,6 @@ package app
 import (
 	"bytes"
 	"encoding/base64"
-	"git.cht-group.net/leicc/go-disc-srv/app/logic"
-	"github.com/leicc520/go-core"
 	"net/http"
 
 	"github.com/leicc520/go-gin-http"
@@ -78,13 +76,13 @@ func doCheckCaptcha(c *gin.Context) {
 		VCode string `form:"vcode"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
-		logic.PanicValidateHttpError(1001, err)
+		core.PanicValidateHttpError(1001, err)
 	}
 	if len(args.SumId) < 6 { //默认取传过来的参数
 		args.SumId, _ = c.Cookie(core.CapCookie)
 	}
 	if !core.Gcaptcha.CheckSum(args.SumId, args.VCode) {
-		logic.PanicHttpError(1010)
+		core.PanicHttpError(1010)
 	}
 	tkStr := core.Gcaptcha.GenerateHash(c)
 	core.NewHttpView(c).JsonDisplay(gin.H{"xtoken": tkStr})

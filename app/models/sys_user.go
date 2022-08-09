@@ -11,16 +11,16 @@ type SysUser struct {
 
 //结构体实例的结构说明
 type SysUserSt struct {
-	Id		uint   	`json:"id"`
-	Account	string	`json:"account"`
-	Loginpw	string	`json:"loginpw"`
-	Email	string	`json:"email"`
-	Mobile	string	`json:"mobile"`
-	Regtime	int		`json:"regtime"`
-	Status	int8	`json:"status"`
-	Expire	int		`json:"expire"`
-	Isdup	int8	`json:"isdup"`
-	Stime	int		`json:"stime"`
+	Id		 int64  `json:"id"`
+	Account	 string	`json:"account"`
+	NickName string	`json:"nickname"`
+	Loginpw	 string	`json:"loginpw"`
+	Email	 string	`json:"email"`
+	Mobile	 string	`json:"mobile"`
+	Regtime	 int	`json:"regtime"`
+	Status	 int8	`json:"status"`
+	Expire	 int64	`json:"expire"`
+	Stime	 int	`json:"stime"`
 }
 
 //这里默认引用全局的连接池句柄
@@ -28,6 +28,7 @@ func NewSysUser() *SysUser {
 	fields := map[string]reflect.Kind{
 		"id":			reflect.Uint,		//账号id
 		"account":		reflect.String,		//登录账号
+		"nickname":		reflect.String,		//登录昵称
 		"loginpw":		reflect.String,		//登录密码 要求客户端md5之后传到服务端做二次校验
 		"email":		reflect.String,		//电子邮箱
 		"mobile":		reflect.String,		//手机号码

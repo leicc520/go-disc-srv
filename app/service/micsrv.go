@@ -1,17 +1,17 @@
-package discCTRL
+package service
 
 import (
-	"github.com/leicc520/go-orm"
 	"os"
 	"sync"
 	"time"
-
-	"git.cht-group.net/leicc/go-orm"
-	"git.cht-group.net/leicc/go-orm/log"
-	"git.cht-group.net/leicc/go-disc-srv/app/models/sys"
+	
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
+	"github.com/leicc520/go-orm/log"
+	"githunb.com/leicc520/go-disc-srv/app/models"
 )
 
-type micsrvNodeSt struct {
+type MicSrvNodeSt struct {
 	Id      int64  `json:"id"`
 	Status  int8   `json:"status"`
 	Name    string `json:"name" binding:"required"`
@@ -29,24 +29,24 @@ type MicSrvPoolSt struct {
 	mLock sync.RWMutex
 }
 
-var gGrpcPools *MicSrvPoolSt = nil
-var gHttpPools *MicSrvPoolSt = nil
+var GrpcPools *MicSrvPoolSt = nil
+var HttpPools *MicSrvPoolSt = nil
 
 func init() {
-	gGrpcPools = &MicSrvPoolSt{mPool: make(MicSrvMapSt), mLock: sync.RWMutex{}, mOnce: sync.Once{}}
-	gHttpPools = &MicSrvPoolSt{mPool: make(MicSrvMapSt), mLock: sync.RWMutex{}, mOnce: sync.Once{}}
+	GrpcPools = &MicSrvPoolSt{mPool: make(MicSrvMapSt), mLock: sync.RWMutex{}, mOnce: sync.Once{}}
+	HttpPools = &MicSrvPoolSt{mPool: make(MicSrvMapSt), mLock: sync.RWMutex{}, mOnce: sync.Once{}}
 }
 
 //执行心跳检测 处理逻辑
 func (s *MicSrvPoolSt) checkLoop(proto string) {
-	sorm := sys.NewSysMsrv()
+	sorm := models.NewSysMsrv()
 	smap := orm.SqlMap{"status": 2, "stime": time.Now().Unix()}
 	log.Write(log.INFO, "start check {"+proto+"} server")
 	for { //开启一个协程循环执行检测任务
 		for sname, srvs := range s.mPool {
 			for srv, oldid := range srvs {
 				//状态不一致的情况删除节点 更新db 重复三次都是异常
-				if !regSrv.Health(3, proto, srv) {
+				if !core.RegSrv.Health(3, proto, srv) {
 					s.Del(sname, srv)
 					if oldid > 0 { //记录ID大于0的情况
 						smap["stime"] = time.Now().Unix()
@@ -66,20 +66,20 @@ func (s *MicSrvPoolSt) checkLoop(proto string) {
 func (s *MicSrvPoolSt) Load(proto string) {
 	s.mLock.Lock()
 	defer s.mLock.Unlock()
-	sorm := sys.NewSysMsrv()
+	sorm := models.NewSysMsrv()
 	list := sorm.GetList(0, -1, func(st *orm.QuerySt) string {
 		st.Where("proto", proto)
 		st.OrderBy("status", orm.ASC).OrderBy("stime", orm.DESC)
 		return st.GetWheres()
 	}, "id,name,srv,status,proto,version")
-	node := micsrvNodeSt{}
+	node := MicSrvNodeSt{}
 	for _, msrv := range list {
 		if err := msrv.ToStruct(&node); err != nil || node.Id < 0 {
 			log.Write(log.ERROR, err)
 			continue
 		}
 		//状态异常的情况 且检测不到心跳的情况
-		if node.Status != 1 && !regSrv.Health(1, node.Proto, node.Srv) {
+		if node.Status != 1 && !core.RegSrv.Health(1, node.Proto, node.Srv) {
 			if os.Getenv("DCLOC") != "loc" {//本地执行的情况
 				sorm.Delete(node.Id) //移除记录
 			}
@@ -118,8 +118,8 @@ func (s *MicSrvPoolSt) Get(name string) []string {
 		return nil
 	}
 	srv := make([]string, 0)
-	for osrv, oldid := range s.mPool[name] {
-		if oldid > 0 { //附加到节点
+	for osrv, oldId := range s.mPool[name] {
+		if oldId > 0 { //附加到节点
 			srv = append(srv, osrv)
 		}
 	}
@@ -131,7 +131,7 @@ func (s *MicSrvPoolSt) Del(name, srv string) {
 	s.mLock.Lock()
 	defer s.mLock.Unlock()
 	if _, ok := s.mPool[name]; ok {
-		if _, ok := s.mPool[name][srv]; ok {
+		if _, ok = s.mPool[name][srv]; ok {
 			delete(s.mPool[name], srv)
 		}
 	}

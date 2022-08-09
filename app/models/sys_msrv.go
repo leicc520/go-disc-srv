@@ -16,8 +16,9 @@ type SysMsrvSt struct {
 	Name		string		`json:"name"`		
 	Version		string		`json:"version"`		
 	Proto		string		`json:"proto"`		
-	Status		int8		`json:"status"`		
-	Stime		int			`json:"stime"`
+	Status		int8		`json:"status"`
+	Addtime		uint		`json:"addtime"`
+	Stime		uint		`json:"stime"`
 }
 
 //这里默认引用全局的连接池句柄
@@ -29,7 +30,8 @@ func NewSysMsrv() *SysMsrv {
 		"version":		reflect.String,		//版本号
 		"proto":		reflect.String,		//协议
 		"status":		reflect.Int8,		//状态 1-正常 0-失效
-		"stime":		reflect.Int,		//更新时间
+		"addtime":		reflect.Uint,		//记录时间
+		"stime":		reflect.Uint,		//更新时间
 	}
 	
 	args  := map[string]interface{}{

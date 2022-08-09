@@ -20,6 +20,7 @@ func sqliteInitialize(dataSource string) {
 	CREATE TABLE sys_user (
 	  id      INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, --账号id
 	  account VARCHAR(31) NOT NULL, --登录账号(工号)
+	  nickname VARCHAR(127) NOT NULL, --账号昵称(姓名)
 	  loginpw VARCHAR(32) NOT NULL, --登录密码 要求客户端md5之后传到服务端做二次校验
 	  email   VARCHAR(63) DEFAULT NULL, --电子邮箱
 	  mobile  VARCHAR(15) DEFAULT NULL, --手机号码
@@ -29,7 +30,7 @@ func sqliteInitialize(dataSource string) {
 	  stime   UNSIGNED INT NOT NULL --最后操作时间
 	);
 	CREATE UNIQUE INDEX idx_account ON sys_user (account);
-	INSERT INTO sys_user VALUES (1, 'admin', '1f9abbabf9926d579a3c5d1140421be8', 'xxx@xxx.com', '11000000000', 1646036519, 1, 1727452800, 1646036519);
+	INSERT INTO sys_user VALUES (1, 'admin', '超级管理员', '1f9abbabf9926d579a3c5d1140421be8', 'xxx@xxx.com', '11000000000', 1646036519, 1, 1727452800, 1646036519);
 	
 	CREATE TABLE sys_msrv (
 	  id 	  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, --记录ID
@@ -38,7 +39,8 @@ func sqliteInitialize(dataSource string) {
 	  version VARCHAR(15) DEFAULT '',       --版本号
 	  proto   VARCHAR(15) DEFAULT '',       --协议http/grpc
 	  status  TINYINT DEFAULT '0',          --状态 1-正常 0-失效
-	  stime   UNSIGNED INT DEFAULT '0'     --更新时间
+	  addtime UNSIGNED INT DEFAULT '0',     --记录时间
+	  stime   UNSIGNED INT DEFAULT '0'      --更新时间
 	);
 	CREATE UNIQUE INDEX idx_srv ON sys_msrv (srv);
 	CREATE INDEX idx_name_proto_status ON sys_msrv (name,proto,status);
@@ -55,6 +57,15 @@ func sqliteInitialize(dataSource string) {
 	);
 	CREATE INDEX idx_userid ON sys_yaml (userid);
 	CREATE INDEX idx_name_status ON sys_yaml (name,status);
+
+	CREATE TABLE sys_safe (
+  	  userid  INTEGER NOT NULL,           --角色ID
+  	  sys     TINYINT DEFAULT '0',        --系统别0-web 1-app,
+	  loginpw VARCHAR(63) DEFAULT NULL,   --会员密码生成的Tocken
+  	  tocken  VARCHAR(32) DEFAULT NULL,   --随机码生成的Tocken
+  	  expire  UNSIGNED INT DEFAULT '0'    --过期时间
+    );
+	CREATE UNIQUE INDEX idx_userid_sys ON sys_safe (userid,sys);
 `
 	if _, err = db.Exec(str); err != nil {
 		log.Write(log.ERROR, "sqlite3数据库执行初始化失败", err)
