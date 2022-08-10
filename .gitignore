@@ -2,4 +2,5 @@ go.sum
 .idea
 *.exe
 *.db
+cachedir
 
