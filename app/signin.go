@@ -5,10 +5,10 @@ import (
 	"time"
 	
 	"github.com/gin-gonic/gin"
-	"github.com/leicc520/go-gin-http"
-	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-disc-srv/app/models"
 	"github.com/leicc520/go-disc-srv/app/service"
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
 )
 
 //获取用户的基础信息
@@ -28,9 +28,9 @@ func _user_(user *models.SysUserSt) orm.SqlMap {
 // @Router /signin/check [post]
 func signInCheck(c *gin.Context) {
 	args := struct {
-		Account string `form:"account" binding:"required,min=3"`
-		Loginpw string `form:"loginpw" binding:"required,min=6"`
-		Xtoken string `form:"xtoken" binding:"required,min=8"`
+		Account string `form:"account" json:"account" binding:"required,min=3"`
+		Loginpw string `form:"loginpw" json:"loginpw" binding:"required,min=6"`
+		Xtoken string  `form:"xtoken" json:"xtoken" binding:"required,min=8"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicValidateHttpError(1001, err)

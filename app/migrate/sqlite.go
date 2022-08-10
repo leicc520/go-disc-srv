@@ -11,7 +11,7 @@ import (
 
 //初始化数据库--
 func sqliteInitialize(dataSource string) {
-	fmt.Println("===============================开始数据库的已完成初始化===============================")
+	fmt.Println("===============================开始数据库初始化===============================")
 	db, err := sql.Open("sqlite3", dataSource)
 	if err != nil {
 		log.Write(log.ERROR, "sqlite3数据库初始化失败", err)
@@ -84,5 +84,5 @@ func sqliteInitialize(dataSource string) {
 		log.Write(log.ERROR, "sqlite3表初始化检测异常", err)
 		panic("sqlite3表初始化检测异常")
 	}
-	fmt.Println("=============================数据"+dataSource+"完成=============================")
+	fmt.Println("=============================初始化"+dataSource+"完成=============================")
 }

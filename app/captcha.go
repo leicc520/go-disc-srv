@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"net/http"
-
-	"github.com/leicc520/go-gin-http"
+	
 	"github.com/dchest/captcha"
 	"github.com/gin-gonic/gin"
+	"github.com/leicc520/go-gin-http"
 )
 
 //初始化验证码
@@ -72,8 +72,8 @@ func doCaptchaJson(c *gin.Context) {
 // @Router /captcha/check [post]
 func doCheckCaptcha(c *gin.Context) {
 	args := struct {
-		SumId string `form:"sumid"`
-		VCode string `form:"vcode"`
+		SumId string `form:"sumid" json:"sumid" binding:"required"`
+		VCode string `form:"vcode" json:"vcode" binding:"required"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicValidateHttpError(1001, err)
