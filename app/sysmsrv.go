@@ -5,8 +5,8 @@ import (
 	
 	"github.com/leicc520/go-gin-http"
 	"github.com/leicc520/go-orm"
-	"githunb.com/leicc520/go-disc-srv/app/models"
-	"githunb.com/leicc520/go-disc-srv/app/service"
+	"github.com/leicc520/go-disc-srv/app/models"
+	"github.com/leicc520/go-disc-srv/app/service"
 	"github.com/gin-gonic/gin"
 )
 

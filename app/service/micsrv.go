@@ -1,14 +1,13 @@
 package service
 
 import (
-	"os"
 	"sync"
 	"time"
 	
-	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-disc-srv/app/models"
+	"github.com/leicc520/go-gin-http/micro"
 	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-orm/log"
-	"githunb.com/leicc520/go-disc-srv/app/models"
 )
 
 type MicSrvNodeSt struct {
@@ -39,24 +38,26 @@ func init() {
 
 //执行心跳检测 处理逻辑
 func (s *MicSrvPoolSt) checkLoop(proto string) {
-	sorm := models.NewSysMsrv()
-	smap := orm.SqlMap{"status": 2, "stime": time.Now().Unix()}
+	regSrv := micro.NewRegSrvClient("")
+	smap   := orm.SqlMap{"status": 2, "stime": time.Now().Unix()}
 	log.Write(log.INFO, "start check {"+proto+"} server")
 	for { //开启一个协程循环执行检测任务
-		for sname, srvs := range s.mPool {
-			for srv, oldid := range srvs {
-				//状态不一致的情况删除节点 更新db 重复三次都是异常
-				if !core.RegSrv.Health(3, proto, srv) {
-					s.Del(sname, srv)
-					if oldid > 0 { //记录ID大于0的情况
-						smap["stime"] = time.Now().Unix()
-						sorm.Save(oldid, smap)
+		for sName, oriSrv := range s.mPool {
+			go func(proName string, proSrv map[string]int64) {
+				for srv, oldId := range proSrv {
+					//状态不一致的情况删除节点 更新db 重复三次都是异常
+					if !regSrv.Health(3, proto, srv) {
+						s.Del(proName, srv)
+						if oldId > 0 { //记录ID大于0的情况
+							smap["stime"] = time.Now().Unix()
+							models.NewSysMsrv().Save(oldId, smap)
+						}
+						log.Write(log.INFO, "check server health {"+proName+"} -->"+srv+" status:ERROR")
+					} else {
+						log.Write(log.INFO, "check server health {"+proName+"} -->"+srv+" status:OK")
 					}
-					log.Write(log.INFO, "check server health {"+sname+"} -->"+srv+" status:ERROR")
-				} else {
-					log.Write(log.INFO, "check server health {"+sname+"} -->"+srv+" status:OK")
 				}
-			}
+			}(sName, oriSrv)
 		}
 		time.Sleep(time.Second * 60)
 	}
@@ -66,8 +67,9 @@ func (s *MicSrvPoolSt) checkLoop(proto string) {
 func (s *MicSrvPoolSt) Load(proto string) {
 	s.mLock.Lock()
 	defer s.mLock.Unlock()
-	sorm := models.NewSysMsrv()
-	list := sorm.GetList(0, -1, func(st *orm.QuerySt) string {
+	regSrv := micro.NewRegSrvClient("")
+	sorm   := models.NewSysMsrv()
+	list   := sorm.GetList(0, -1, func(st *orm.QuerySt) string {
 		st.Where("proto", proto)
 		st.OrderBy("status", orm.ASC).OrderBy("stime", orm.DESC)
 		return st.GetWheres()
@@ -79,10 +81,8 @@ func (s *MicSrvPoolSt) Load(proto string) {
 			continue
 		}
 		//状态异常的情况 且检测不到心跳的情况
-		if node.Status != 1 && !core.RegSrv.Health(1, node.Proto, node.Srv) {
-			if os.Getenv("DCLOC") != "loc" {//本地执行的情况
-				sorm.Delete(node.Id) //移除记录
-			}
+		if node.Status != 1 && !regSrv.Health(1, node.Proto, node.Srv) {
+			sorm.Delete(node.Id) //移除记录
 			continue
 		}
 		if node.Status != 1 { //更新重置状态

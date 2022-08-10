@@ -2,20 +2,21 @@ package migrate
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/leicc520/go-disc-srv/app/models"
 	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-orm/log"
 	_ "github.com/mattn/go-sqlite3"
-	"githunb.com/leicc520/go-disc-srv/app/models"
 )
 
 //初始化数据库--
 func sqliteInitialize(dataSource string) {
+	fmt.Println("===============================开始数据库的已完成初始化===============================")
 	db, err := sql.Open("sqlite3", dataSource)
 	if err != nil {
 		log.Write(log.ERROR, "sqlite3数据库初始化失败", err)
 		panic("sqlite3数据库初始化失败")
 	}
-
 	str := `
 	CREATE TABLE sys_user (
 	  id      INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, --账号id
@@ -71,7 +72,6 @@ func sqliteInitialize(dataSource string) {
 		log.Write(log.ERROR, "sqlite3数据库执行初始化失败", err)
 		panic("sqlite3数据库执行SQL初始化失败")
 	}
-
 	dbConfig := orm.DbConfig{Driver: "sqlite3", Host: dataSource}
 	orm.InitDBPoolSt().Set("dbmaster", &dbConfig)
 	orm.InitDBPoolSt().Set("dbslaver", &dbConfig)
@@ -79,8 +79,10 @@ func sqliteInitialize(dataSource string) {
 	ttlYml := models.NewSysYaml().GetTotal(nil, "COUNT(1)").ToInt64()
 	ttlSrv := models.NewSysMsrv().GetTotal(nil, "COUNT(1)").ToInt64()
 	ttlUsr := models.NewSysUser().GetTotal(nil, "COUNT(1)").ToInt64()
-	if ttlYml < 0 || ttlSrv < 0 || ttlUsr < 1 {
+	ttlSafe:= models.NewSysSafe().GetTotal(nil, "COUNT(1)").ToInt64()
+	if ttlYml < 0 || ttlSrv < 0 || ttlUsr < 1 || ttlSafe < 0 {
 		log.Write(log.ERROR, "sqlite3表初始化检测异常", err)
 		panic("sqlite3表初始化检测异常")
 	}
+	fmt.Println("=============================数据"+dataSource+"完成=============================")
 }

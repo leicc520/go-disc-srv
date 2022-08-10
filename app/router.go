@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/leicc520/go-gin-http"
 	"github.com/leicc520/go-orm/log"
-	"githunb.com/leicc520/go-disc-srv/app/service"
+	"github.com/leicc520/go-disc-srv/app/service"
 	"os"
 )
 
@@ -53,6 +53,9 @@ func WebRegister(weApp *gin.Engine)  {
 	weApp.POST("/captcha/check", doCheckCaptcha)
 	weApp.POST("/signin/check", signInCheck)
 	hRouter := weApp.Group("/api/core").Use(core.GINJWTCheck())
+	hRouter.POST("/user/list", sysUserList)
+	hRouter.POST("/user/safe", sysUserSafe)
+	hRouter.POST("/user/update", sysUserUpdate)
 	hRouter.POST("/signin/recheck", signInReCheck)
 	hRouter.POST("/misrv/reload", sysmsrvReload)
 	hRouter.POST("/misrv/status", sysmsrvStatus)
