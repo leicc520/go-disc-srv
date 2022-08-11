@@ -6,10 +6,10 @@ import (
 	"time"
 	
 	"github.com/gin-gonic/gin"
-	"github.com/leicc520/go-gin-http"
-	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-disc-srv/app/models"
 	"github.com/leicc520/go-disc-srv/app/service"
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
 )
 
 type argsSysUserListSt struct {
@@ -19,14 +19,14 @@ type argsSysUserListSt struct {
 }
 
 type argsSysUserSt struct {
-	Id       int64   `json:"id,string" form:"id,string"`
-	Account  string  `json:"account"   form:"account" binding:"required,min=3"`
+	Id       int64   `json:"id" form:"id"`
+	Account  string  `json:"account"   form:"account"  binding:"required,min=3"`
 	NickName string  `json:"nickname"  form:"nickname" binding:"required,min=1"`
-	Email    string  `json:"email"  form:"email" binding:"required,email"`
-	Mobile   string  `json:"mobile" form:"mobile" binding:"required,regex=^1[3456789][\d]{9}$"`
-	Status   int8    `json:"status" form:"status"`
-	Expire   string  `json:"expire" form:"expire" binding:"required,regex=^[\d]{4}\-[\d]{2}\-[\d]{2}$"`
-	Loginpw  string  `json:"loginpw" form:"loginpw" binding:"omitempty"`
+	Email    string  `json:"email"     form:"email"    binding:"required,email"`
+	Mobile   string  `json:"mobile"    form:"mobile"   binding:"required,regex=^1[3456789][\d]{9}$"`
+	Status   int8    `json:"status"    form:"status"`
+	Expire   string  `json:"expire"    form:"expire"   binding:"required,regex=^[\d]{4}\-[\d]{2}\-[\d]{2}$"`
+	Loginpw  string  `json:"loginpw"   form:"loginpw"  binding:"omitempty"`
 }
 
 // @Summary 系统账号管理
@@ -136,6 +136,7 @@ func sysUserSafe(c *gin.Context) {
 // @Param SIGNATURE header string true "对接第三方登录的时候获取的token"
 // @Param id formData int true "选传大于1说明编辑否则新增"
 // @Param account formData string true "登录账号 唯一"
+// @Param nickname formData string true "用户昵称信息"
 // @Param email formData string true "联系邮箱"
 // @Param mobile formData string true "	联系手机号码"
 // @Param status formData int8 true "审核状态"
@@ -148,7 +149,7 @@ func sysUserUpdate(c *gin.Context) {
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicValidateHttpError(1001, err)
 	}
-	expire := orm.DT2UnixTimeStamp(args.Expire, "2006-01-02")
+	expire := orm.DT2UnixTimeStamp(args.Expire, orm.DATEBASICFormat)
 	args.Loginpw = strings.TrimSpace(args.Loginpw)
 	data   := orm.SqlMap{"id":args.Id, "account":args.Account, "nickname":args.NickName, "email":args.Email,
 		"mobile":args.Mobile, "status":args.Status, "expire":expire, "loginpw":args.Loginpw, "stime":time.Now().Unix()}
