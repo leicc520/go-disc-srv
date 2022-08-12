@@ -151,7 +151,7 @@ func sysUserUpdate(c *gin.Context) {
 	}
 	expire := orm.DT2UnixTimeStamp(args.Expire, orm.DATEBASICFormat)
 	args.Loginpw = strings.TrimSpace(args.Loginpw)
-	data   := orm.SqlMap{"id":args.Id, "account":args.Account, "nickname":args.NickName, "email":args.Email,
+	data   := orm.SqlMap{"account":args.Account, "nickname":args.NickName, "email":args.Email,
 		"mobile":args.Mobile, "status":args.Status, "expire":expire, "loginpw":args.Loginpw, "stime":time.Now().Unix()}
 	acl := core.NewAcl(0, models.NewSysSafe().Instance())
 	if len(args.Loginpw) > 0 { //验证码密码的处理逻辑
