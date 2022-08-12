@@ -46,6 +46,10 @@ func sysUserList(c *gin.Context) {
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicValidateHttpError(1001, err)
 	}
+	userId  := service.JWTACLGetUserid(c)
+	if userId != 1 {
+		core.PanicHttpError(4003, "无权限访问,禁止操作")
+	}
 	sorm    := models.NewSysUser()
 	wHandle := sysUserListWhere(&args)
 	total   := sorm.GetTotal(wHandle, "COUNT(1)").ToInt64()
@@ -148,6 +152,10 @@ func sysUserUpdate(c *gin.Context) {
 	args   := argsSysUserSt{}
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicValidateHttpError(1001, err)
+	}
+	userId  := service.JWTACLGetUserid(c)
+	if userId != 1 {
+		core.PanicHttpError(4003, "无权限访问,禁止操作")
 	}
 	expire := orm.DT2UnixTimeStamp(args.Expire, orm.DATEBASICFormat)
 	args.Loginpw = strings.TrimSpace(args.Loginpw)
