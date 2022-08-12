@@ -5,10 +5,10 @@ import (
 	"time"
 	
 	"github.com/gin-gonic/gin"
-	"github.com/leicc520/go-gin-http"
-	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-disc-srv/app/models"
 	"github.com/leicc520/go-disc-srv/app/service"
+	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-orm"
 )
 
 type argsYamlSt struct {
@@ -96,7 +96,8 @@ func sysYamlDelete(c *gin.Context) {
 	}
 	sorm  := models.NewSysYaml()
 	data  := models.SysYamlSt{}
-	if err := sorm.GetOne(args.Id).ToStruct(&data); err != nil || data.Status == 1 {
+	err   := sorm.GetOne(args.Id).ToStruct(&data)
+	if err != nil || (data.Status == 1 && data.Calls > 0) {
 		core.PanicHttpError(1002, "配置已经投入使用,无法删除.")
 	}
 	sorm.Delete(args.Id) //删除缓存

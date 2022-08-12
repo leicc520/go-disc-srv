@@ -62,7 +62,7 @@ func sysUserList(c *gin.Context) {
 //获取查询条件的设定
 func sysUserListWhere(args *argsSysUserListSt) orm.WHandler {
 	return func(st *orm.QuerySt) string {
-		if args.Status > 0 {
+		if args.Status >= 0 {
 			st.Where("status", args.Status)
 		}
 		if len(args.Stime) > 0 {
