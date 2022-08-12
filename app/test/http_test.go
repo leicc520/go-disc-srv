@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/leicc520/go-gin-http"
+	"github.com/leicc520/go-gin-http/micro"
 	"github.com/leicc520/go-orm"
 	"testing"
 )
@@ -31,5 +32,16 @@ func TestSignIn(t *testing.T) {
 	//1f9abbabf9926d579a3c5d1140421be8
 	fmt.Println(string(bodyStr))
 	core.NewHttpRequest().SetContentType("json").Request(urlStr, bodyStr, "POST")
-	
+}
+
+func TestConfig(t *testing.T) {
+	regsrv := micro.NewRegSrvClient("")
+	config := regsrv.Config("go.disc.srv")
+	fmt.Println(config)
+}
+
+func TestDiscover(t *testing.T) {
+	regsrv := micro.NewRegSrvClient("")
+	srv, err := regsrv.Discover("http", "go.demov5.srv")
+	fmt.Println(srv, err)
 }
