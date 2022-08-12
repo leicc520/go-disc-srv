@@ -2,12 +2,35 @@ package migrate
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
+	
 	"github.com/leicc520/go-disc-srv/app/models"
 	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-orm/log"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+//检测是否已经存在表信息了
+func sqliteCheckExists(dataSource string) error {
+	if fileInfo, err := os.Stat(dataSource); err != nil || fileInfo.Size() < 1 {//不存在的话完成初始化
+		errors.New("sqlite3表未检测到数据")
+	}
+	dbConfig := orm.DbConfig{Driver: "sqlite3", Host: dataSource}
+	orm.InitDBPoolSt().Set("dbmaster", &dbConfig)
+	orm.InitDBPoolSt().Set("dbslaver", &dbConfig)
+	orm.IsDebug = true //打印sql语句的情况
+	ttlYml := models.NewSysYaml().NoCache().GetTotal(nil, "COUNT(1)").ToInt64()
+	ttlSrv := models.NewSysMsrv().NoCache().GetTotal(nil, "COUNT(1)").ToInt64()
+	ttlUsr := models.NewSysUser().NoCache().GetTotal(nil, "COUNT(1)").ToInt64()
+	ttlSafe:= models.NewSysSafe().NoCache().GetTotal(nil, "COUNT(1)").ToInt64()
+	if ttlYml < 0 || ttlSrv < 0 || ttlUsr < 1 || ttlSafe < 0 {
+		log.Write(log.ERROR, "sqlite3表初始化检测异常")
+		return errors.New("sqlite3表初始化检测异常")
+	}
+	return nil
+}
 
 //初始化数据库--
 func sqliteInitialize(dataSource string) {
@@ -17,6 +40,7 @@ func sqliteInitialize(dataSource string) {
 		log.Write(log.ERROR, "sqlite3数据库初始化失败", err)
 		panic("sqlite3数据库初始化失败")
 	}
+	defer db.Close()
 	str := `
 	CREATE TABLE sys_user (
 	  id      INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, --账号id
@@ -72,17 +96,8 @@ func sqliteInitialize(dataSource string) {
 		log.Write(log.ERROR, "sqlite3数据库执行初始化失败", err)
 		panic("sqlite3数据库执行SQL初始化失败")
 	}
-	dbConfig := orm.DbConfig{Driver: "sqlite3", Host: dataSource}
-	orm.InitDBPoolSt().Set("dbmaster", &dbConfig)
-	orm.InitDBPoolSt().Set("dbslaver", &dbConfig)
-	orm.IsDebug = true //打印sql语句的情况
-	ttlYml := models.NewSysYaml().GetTotal(nil, "COUNT(1)").ToInt64()
-	ttlSrv := models.NewSysMsrv().GetTotal(nil, "COUNT(1)").ToInt64()
-	ttlUsr := models.NewSysUser().GetTotal(nil, "COUNT(1)").ToInt64()
-	ttlSafe:= models.NewSysSafe().GetTotal(nil, "COUNT(1)").ToInt64()
-	if ttlYml < 0 || ttlSrv < 0 || ttlUsr < 1 || ttlSafe < 0 {
-		log.Write(log.ERROR, "sqlite3表初始化检测异常", err)
-		panic("sqlite3表初始化检测异常")
+	if err = sqliteCheckExists(dataSource); err != nil {
+		panic(err)
 	}
 	fmt.Println("=============================初始化"+dataSource+"完成=============================")
 }

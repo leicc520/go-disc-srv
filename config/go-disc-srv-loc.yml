@@ -19,9 +19,19 @@ logger:
   file: go-disc-srv
   dir: ./cachedir/log
   mask: 4
+dbmastersqlite3:
+  driver: sqlite3
+  host: go.disc.srv.db
+dbslaversqlite3:
+  driver: sqlite3
+  host: go.disc.srv.db
 dbmaster:
-  driver: sqlite3
-  host: go.disc.srv.db
+  driver: mysql
+  host: root:@tcp(127.0.0.1:3306)/go_disc_srv?charset=utf8mb4
+  maxOpenConns: 128
+  maxIdleConns: 64
 dbslaver:
-  driver: sqlite3
-  host: go.disc.srv.db
+  driver: mysql
+  host: root:@tcp(127.0.0.1:3306)/go_disc_srv?charset=utf8mb4
+  maxOpenConns: 128
+  maxIdleConns: 64
