@@ -1,31 +1,14 @@
 package app
 
 import (
+	"os"
+	"time"
+	
 	"github.com/gin-gonic/gin"
+	"github.com/leicc520/go-disc-srv/app/service"
 	"github.com/leicc520/go-gin-http"
 	"github.com/leicc520/go-orm/log"
-	"github.com/leicc520/go-disc-srv/app/service"
-	"os"
 )
-
-
-//注册核心业务的http请求方法
-func MicroRegister(weApp *gin.Engine) {
-	hRouter := weApp.Group("/micsrv").Use(XTCheck())
-	hRouter.GET("/discover/:proto/:name", doDiscover)
-	hRouter.GET("/config/:name", doConfig)
-	hRouter.POST("/unregister", doUnRegister)
-	hRouter.POST("/register", doRegister)
-	hRouter.GET("/reload", doReload)
-	if service.HttpPools != nil { //启动的时候加载
-		service.HttpPools.Load("http")
-		log.Write(log.INFO, "start http discover service")
-	}
-	if service.GrpcPools != nil { //启动的时候加载
-		service.GrpcPools.Load("grpc")
-		log.Write(log.INFO, "start grpc discover service")
-	}
-}
 
 //做最简单的token校验即可  一般服务发现只开通内网
 func XTCheck() gin.HandlerFunc {
@@ -43,7 +26,7 @@ func XTCheck() gin.HandlerFunc {
 }
 
 //注册核心业务的http请求方法
-func WebRegister(weApp *gin.Engine)  {
+func Register(weApp *gin.Engine)  {
 	weApp.MaxMultipartMemory = 64 * 1024 * 1024 //上传文件-64MB
 	if  service.Config != nil && len(service.Config.App.UpFileDir) > 1 {
 		weApp.Static("/upfile", service.Config.App.UpFileDir)
@@ -63,4 +46,21 @@ func WebRegister(weApp *gin.Engine)  {
 	hRouter.POST("/yaml/list", sysYamlList)
 	hRouter.POST("/yaml/update", sysYamlUpdate)
 	hRouter.POST("/yaml/delete", sysYamlDelete)
+	//微服务接口数据信息管理
+	xRouter := weApp.Group("/micsrv").Use(XTCheck())
+	xRouter.GET("/discover/:proto/:name", doDiscover)
+	xRouter.GET("/config/:name", doConfig)
+	xRouter.POST("/unregister", doUnRegister)
+	xRouter.POST("/register", doRegister)
+	xRouter.GET("/reload", doReload)
+	time.AfterFunc(time.Millisecond*100, func() {//延迟加载数据
+		if service.HttpPools != nil { //启动的时候加载
+			service.HttpPools.Load("http")
+			log.Write(log.INFO, "start http discover service")
+		}
+		if service.GrpcPools != nil { //启动的时候加载
+			service.GrpcPools.Load("grpc")
+			log.Write(log.INFO, "start grpc discover service")
+		}
+	})
 }

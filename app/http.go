@@ -33,21 +33,18 @@ func doRegister(c *gin.Context) {
 		srvIp, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
 		args.Srv = srvIp + ":" + args.Srv
 	}
+	stime := time.Now().Unix()
 	sorm  := models.NewSysMsrv()
 	oldid := sorm.GetValue(func(st *orm.QuerySt) string {
 		st.Where("srv", args.Srv)
 		return st.GetWheres()
 	}, "id").ToInt64()
 	if oldid < 1 {//记录不存在的情况新增
-		sorm.NewOneFromHandler(func(st *orm.QuerySt) *orm.QuerySt {
-			st.Value("srv", args.Srv).Value("name", args.Name).Value("status", 1)
-			st.Value("version", args.Version).Value("proto", args.Proto)
-			st.Value("addtime", time.Now().Unix()).Value("stime", time.Now().Unix())
-			return st
-		}, nil)
+		sorm.NewOne(orm.SqlMap{"status":1, "name":args.Name, "addtime":stime, "srv":args.Srv,
+			"version":args.Version, "proto":args.Proto, "stime":stime}, nil)
 	} else {//否则更新数据记录信息
-		sorm.Save(oldid, orm.SqlMap{"status":1, "name":args.Name,
-			"version":args.Version, "proto":args.Proto, "stime":time.Now().Unix()})
+		sorm.Save(oldid, orm.SqlMap{"status":1, "name":args.Name, "addtime":stime,
+			"version":args.Version, "proto":args.Proto, "stime":stime})
 	}
 	log.Write(log.INFO, oldid, "---->", args)
 	//分别添加到对应的数据结构当中
