@@ -24,14 +24,14 @@ import (
 // @Success 200 {string} OK
 // @Router /micsrv/register [post]
 func doRegister(c *gin.Context) {
-	args := service.MicSrvNodeSt{}
+	args   := service.MicSrvNodeSt{}
 	if err := c.ShouldBind(&args); err != nil {
 		core.PanicHttpError(500, err.Error())
 	}
 	//拼接真实的服务地址 只提交端口的情况 要取一下请求IP
 	if ok, err := regexp.MatchString("^[\\d]+$", args.Srv); ok && err == nil {
-		srvip, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
-		args.Srv = srvip + ":" + args.Srv
+		srvIp, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
+		args.Srv = srvIp + ":" + args.Srv
 	}
 	sorm  := models.NewSysMsrv()
 	oldid := sorm.GetValue(func(st *orm.QuerySt) string {
