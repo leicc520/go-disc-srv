@@ -7,11 +7,11 @@ import (
 	"time"
 	
 	"github.com/gin-gonic/gin"
+	"github.com/leicc520/go-disc-srv/app/models"
+	"github.com/leicc520/go-disc-srv/app/service"
 	"github.com/leicc520/go-gin-http"
 	"github.com/leicc520/go-orm"
 	"github.com/leicc520/go-orm/log"
-	"github.com/leicc520/go-disc-srv/app/models"
-	"github.com/leicc520/go-disc-srv/app/service"
 )
 
 // @Summary 微服务注册
@@ -33,17 +33,22 @@ func doRegister(c *gin.Context) {
 		srvip, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
 		args.Srv = srvip + ":" + args.Srv
 	}
-	sorm := models.NewSysMsrv()
-	oldid := sorm.NewOneFromHandler(func(st *orm.QuerySt) *orm.QuerySt {
-		st.Value("srv", args.Srv).Value("name", args.Name)
-		st.Value("version", args.Version).Value("proto", args.Proto)
-		st.Value("status", 1).Value("stime", time.Now().Unix())
-		return st
-	}, func(st *orm.QuerySt) interface{} {
-		st.Duplicate("name", args.Name).Duplicate("version", args.Version).Duplicate("proto", args.Proto)
-		st.Duplicate("status", 1).Duplicate("stime", time.Now().Unix())
-		return nil
-	})
+	sorm  := models.NewSysMsrv()
+	oldid := sorm.GetValue(func(st *orm.QuerySt) string {
+		st.Where("srv", args.Srv)
+		return st.GetWheres()
+	}, "id").ToInt64()
+	if oldid < 1 {//记录不存在的情况新增
+		sorm.NewOneFromHandler(func(st *orm.QuerySt) *orm.QuerySt {
+			st.Value("srv", args.Srv).Value("name", args.Name).Value("status", 1)
+			st.Value("version", args.Version).Value("proto", args.Proto)
+			st.Value("addtime", time.Now().Unix()).Value("stime", time.Now().Unix())
+			return st
+		}, nil)
+	} else {//否则更新数据记录信息
+		sorm.Save(oldid, orm.SqlMap{"status":1, "name":args.Name,
+			"version":args.Version, "proto":args.Proto, "stime":time.Now().Unix()})
+	}
 	log.Write(log.INFO, oldid, "---->", args)
 	//分别添加到对应的数据结构当中
 	if args.Proto == "http" && service.HttpPools != nil {
